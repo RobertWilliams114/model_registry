@@ -25,7 +25,7 @@ def create_version(db, data):
     version_identification = str(uuid.uuid4())
     new_version = Version(id=version_identification, model_id=str(version_dict['model_id']), version_tag=version_dict['version_tag'], framework=version_dict['framework'], current_version=version_dict['promote_to_current'])
     if (new_version.current_version == True):
-        db.query(Version).filter(Version.current_version == True).update({"current_version": False})
+        db.query(Version).filter(Version.current_version == True, Version.model_id == new_version.model_id).update({"current_version": False})
         db.query(Model).filter(Model.id == new_version.model_id).update({"current_version_id": new_version.id})
     db.add(new_version)
     db.commit()
