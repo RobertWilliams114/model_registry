@@ -5,6 +5,7 @@ from db import Base
 class Model(Base):
     __tablename__ = 'models'
     id = Column(String, primary_key=True)
+    owner_team = Column(String)
     name = Column(String, nullable=False)
     description = Column(String)
     current_version_id = Column(String)
