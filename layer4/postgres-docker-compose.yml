@@ -7,4 +7,10 @@ services:
       POSTGRES_USER: registry
       POSTGRES_PASSWORD: registry
       POSTGRES_DB: registry
-  
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on: 
+      - postgres

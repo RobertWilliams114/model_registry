@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-engine = create_engine("sqlite:///registry.db", echo=True)
+engine = create_engine("postgresql://registry:registry@postgres:5432/registry", echo=True)
 
 Base = declarative_base()
 
