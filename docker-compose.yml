@@ -1,5 +1,5 @@
 services:
-  postgres: condition: service_healthy
+  postgres: 
     image: postgres:16
     ports:
       - "5432:5432"
@@ -7,6 +7,12 @@ services:
       POSTGRES_USER: registry
       POSTGRES_PASSWORD: registry
       POSTGRES_DB: registry
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "registry", "-d", "registry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   api:
     build: .
@@ -15,6 +21,7 @@ services:
     volumes:
       - .:/app
       - ~/.aws:/root/.aws:ro
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--reload"]
+    command: ["uvicorn", "registry.main:app", "--host", "0.0.0.0", "--reload"]
     depends_on: 
-      - postgres
+      postgres:
+        condition: service_healthy
