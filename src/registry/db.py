@@ -13,7 +13,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 # Driver is pinned explicitly: a bare "postgresql://" URL resolves to psycopg2
 # on SQLAlchemy 2.0 but to psycopg (v3) on 2.1+, so leaving it off makes the
 # connection depend on which SQLAlchemy happens to be installed.
-DEFAULT_DATABASE_URL = "postgresql+psycopg2://registry:registry@postgres:5432/registry"
+DEFAULT_DATABASE_URL = "postgresql+psycopg2://registry:registry@localhost:5432/registry"
 
 # Declarative base needs no connection, so it stays at module level -- models.py
 # and alembic/env.py both import it without touching a database.

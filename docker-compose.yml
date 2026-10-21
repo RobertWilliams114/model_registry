@@ -16,6 +16,8 @@ services:
 
   api:
     build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg2://registry:registry@postgres:5432/registry
     ports:
       - "8000:8000"
     volumes:
