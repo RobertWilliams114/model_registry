@@ -67,13 +67,13 @@ Five Alembic migrations, in order:
 
 ```
 2344cad24b57  create models and versions
+10160c94f363  add models.owner_team
 c52db5868ca8  add versions.artifact_uri
 8c265dfcf651  make artifact_uri nullable
-10160c94f363  add models.owner_team
 d5ea0e477d5d  add deployments table
 ```
 
-The third one exists because the second got it wrong: `artifact_uri` was added `NOT NULL`, which made it impossible to create a version before uploading its artifact. The fix is a migration rather than an edit to the original, so the history stays replayable from an empty database. That sequence is the honest record of the schema being designed incrementally.
+The fourth exists because the third got it wrong: `artifact_uri` was added `NOT NULL`, which made it impossible to create a version before uploading its artifact. The fix is a migration rather than an edit to the original, so the history stays replayable from an empty database. That sequence is the honest record of the schema being designed incrementally.
 
 ---
 
