@@ -28,4 +28,5 @@ class DeploymentRecord(Base):
     version_id = Column(String, ForeignKey("versions.id"))
     status = Column(String)
     endpoint_url = Column(String, nullable=True)
+    container_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
