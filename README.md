@@ -48,7 +48,7 @@ The promotion rule is the one with real teeth. Marking a new version current has
      ^                                     +---------------+
      |
   Alembic
- 5 migrations
+ 6 migrations
 ```
 
 Two services, deliberately separated. The registry is a long-lived control plane that owns metadata; an inference service is a short-lived data plane that owns one model's weights and nothing else. They share no database and no code — the orchestrator's only contract with a deployed container is `GET /health` returning 200.
@@ -63,7 +63,7 @@ The tradeoff is that the database records the artifact URI *before* the upload i
 
 ### Schema evolution is tracked, not improvised
 
-Five Alembic migrations, in order:
+Six Alembic migrations, in order:
 
 ```
 2344cad24b57  create models and versions
@@ -71,6 +71,7 @@ Five Alembic migrations, in order:
 c52db5868ca8  add versions.artifact_uri
 8c265dfcf651  make artifact_uri nullable
 d5ea0e477d5d  add deployments table
+ccee13953f62  add deployments.container_id
 ```
 
 The fourth exists because the third got it wrong: `artifact_uri` was added `NOT NULL`, which made it impossible to create a version before uploading its artifact. The fix is a migration rather than an edit to the original, so the history stays replayable from an empty database. That sequence is the honest record of the schema being designed incrementally.
@@ -82,18 +83,22 @@ The fourth exists because the third got it wrong: `artifact_uri` was added `NOT 
 **Requirements:** Python 3.10+, Docker, and AWS credentials in `~/.aws` if you want the artifact endpoints.
 
 ```bash
-# Postgres and the API together
-docker compose up --build
+# Postgres in a container, the registry on the host
+docker compose up -d postgres
 
-# or run the API against your own database
 uv venv --python 3.12
 source .venv/bin/activate
 uv pip install -e ".[dev]"
 
-export DATABASE_URL="postgresql+psycopg2://registry:registry@localhost:5432/registry"
 alembic upgrade head
 uvicorn registry.main:app --reload
 ```
+
+`DATABASE_URL` defaults to `localhost:5432`, which is the layout above, so no
+configuration is needed. `docker compose up --build` runs the registry in a
+container too and supplies its own URL — but the orchestrator shells out to
+`docker`, and the API container has neither the Docker CLI nor a mounted
+socket, so deployments only work with the registry on the host.
 
 Interactive API docs at `http://localhost:8000/docs`.
 
@@ -121,6 +126,8 @@ curl localhost:8001/health
 curl -X POST localhost:8001/predict -d '{"input": [1.0, 2.0, 3.0]}'
 ```
 
+The same image is pushed to ECR as `<account>.dkr.ecr.us-east-1.amazonaws.com/inference-service:v1`, so a deployment can pull from a registry rather than rely on a locally built tag.
+
 `src/registry/orchestrator.py` drives that lifecycle programmatically — `start_container`, `wait_for_healthy` with a timeout, `stop_container`. The deployment *endpoints* that would expose this over HTTP are stubs; see Limitations.
 
 ---
@@ -138,7 +145,7 @@ src/registry/
   storage/
     s3.py          presigned PUT and GET
     local.py       filesystem fallback
-alembic/versions/  5 migrations
+alembic/versions/  6 migrations
 inference-service/ separate deployable app and Dockerfile
 tests/
 ```
@@ -163,7 +170,7 @@ The URL also pins its driver — `postgresql+psycopg2://` rather than `postgresq
 
 ## Stack
 
-Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · PostgreSQL 16 · boto3 / S3 · Docker
+Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · PostgreSQL 16 · boto3 / S3 · Docker · ECR · pytest
 
 ---
 
@@ -171,7 +178,7 @@ Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · PostgreSQL
 
 - **The deployment endpoints are not implemented.** `POST /deployments` and `GET /deployments/{id}` are stubs that return nothing. The `deployments` table and `orchestrator.py` both exist and work, but nothing wires the orchestrator to the API, so deployment is currently a library call rather than a service.
 - **No authentication.** Every endpoint is open, and `owner_team` is recorded but never enforced.
-- **No test suite.** `tests/` is a package with nothing in it. The CRUD layer is now structured to be testable, which is the prerequisite, not the achievement.
+- **The CRUD layer is tested; the API layer is not.** `tests/` covers version promotion against in-memory SQLite, but nothing exercises the routes, the storage backends, or the orchestrator.
 - The S3 bucket name is hardcoded in `src/registry/storage/s3.py`; it should come from configuration.
 - `storage/local.py` is a filesystem fallback that no route uses — the upload path is S3-only.
 - The inference service serves a dot product from `model.json`. It demonstrates the deployment contract rather than real inference; loading a genuine PyTorch or LightGBM artifact is the obvious extension.
@@ -184,7 +191,7 @@ Python 3.12 · FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · PostgreSQL
 ## Roadmap
 
 - Wire `POST /deployments` to the orchestrator and record the result in `DeploymentRecord`
-- A test suite: the promotion invariant first, since "exactly one current version" is the one rule worth enforcing
+- Extend the tests past CRUD: route-level tests with FastAPI's TestClient, and a faked orchestrator
 - Load real framework artifacts in the inference service instead of a JSON weight vector
 - Move bucket, region, and credentials into configuration
 - API key or OIDC authentication, with `owner_team` as the authorization boundary
